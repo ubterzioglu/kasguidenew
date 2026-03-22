@@ -46,7 +46,7 @@ export function SiteFrame({ children }: SiteFrameProps) {
       </div>
 
       <a href="#page-top" className="back-to-top" aria-label="Yukarı çık">
-        <img src="/upup.png" alt="" className="back-to-top-image" aria-hidden="true" />
+        <span className="back-to-top-image" aria-hidden="true"></span>
       </a>
     </>
   )

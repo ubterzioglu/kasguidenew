@@ -79,7 +79,7 @@ html {
   position: relative;
   z-index: 3;
   width: min(1200px, calc(100% - 2rem));
-  padding: 3.4rem 0 3rem;
+  padding: 4.45rem 0 3rem;
 }
 
 .home-categories-section {
@@ -366,7 +366,7 @@ html {
 
   .hero-content {
     width: min(100%, calc(100% - 1rem));
-    padding: 2.9rem 0 2rem;
+    padding: 3.45rem 0 2rem;
   }
 
   .hero::after {
@@ -973,7 +973,10 @@ html {
   width: 2.2rem;
   height: 2.2rem;
   display: block;
-  object-fit: contain;
+  background-image: url('/upup.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
   animation: turtle-swim-up 2.2s ease-in-out infinite;
 }
 
