@@ -13,6 +13,10 @@ export function SiteFrame({ children }: SiteFrameProps) {
   const pathname = usePathname()
   const isHomePage = pathname === '/'
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
     <>
       <div id="page-top"></div>
@@ -45,9 +49,14 @@ export function SiteFrame({ children }: SiteFrameProps) {
         {children}
       </div>
 
-      <a href="#page-top" className="back-to-top" aria-label="Yukarı çık">
+      <button
+        type="button"
+        className="back-to-top"
+        aria-label="Yukarı çık"
+        onClick={scrollToTop}
+      >
         <span className="back-to-top-image" aria-hidden="true"></span>
-      </a>
+      </button>
     </>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
+import { DEFAULT_HERO_SLIDES, HERO_ROTATION_MS, type HeroSlide } from '@/lib/hero-slide-data'
 import { CATEGORIES } from '@/lib/supabase'
 
 const CATEGORY_GROUPS = [
@@ -27,108 +28,68 @@ const CATEGORY_GROUPS = [
   },
 ] as const
 
-const HERO_SCENES = [
-  {
-    eyebrow: 'Kaş Sahne 01',
-    title: 'Akşam ışığında Kaş kıyıları.',
-    description:
-      'Hero alanında dönüşümlü olarak duyurular, etkinlikler ve öne çıkan rotalar bu sahnelerin üstünde gösterilecek.',
-    imageUrl:
-      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80',
-  },
-  {
-    eyebrow: 'Kaş Sahne 02',
-    title: 'Turkuaz su, kıyı çizgisi ve sakin bir gün.',
-    description:
-      'Büyük başlıklar, kısa açıklamalar ve kampanya mesajları için sinematik bir arka plan akışı.',
-    imageUrl:
-      'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1600&q=80',
-  },
-  {
-    eyebrow: 'Kaş Sahne 03',
-    title: 'Patara yönünde geniş ufuk ve sahil dokusu.',
-    description:
-      'Her sahne farklı bir atmosfer taşıyabilir; yaz sezonu, etkinlik haftası ya da yerel öneriler gibi.',
-    imageUrl:
-      'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1600&q=80',
-  },
-  {
-    eyebrow: 'Kaş Sahne 04',
-    title: 'Kıyıya açılan tekneler ve yazın hafifliği.',
-    description:
-      'Netflix benzeri bu vitrin yapısı, tek ekranda hem görsel etki hem de hızlı yönlendirme verecek.',
-    imageUrl:
-      'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1600&q=80',
-  },
-  {
-    eyebrow: 'Kaş Sahne 05',
-    title: 'Deniz, taş kıyı ve maviye bakan rotalar.',
-    description:
-      'Carousel altındaki oklar ve geçiş kareleri sayesinde içerikler kolayca gezilebilecek.',
-    imageUrl:
-      'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=1600&q=80',
-  },
-  {
-    eyebrow: 'Kaş Sahne 06',
-    title: 'Yumuşak gün batımıyla Kaş manzarası.',
-    description:
-      'Hero sahneleri kampanya, festival, plaj önerisi ya da özel içerik serisi gibi farklı ihtiyaçlara uyarlanabilir.',
-    imageUrl:
-      'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=1600&q=80',
-  },
-  {
-    eyebrow: 'Kaş Sahne 07',
-    title: 'Kıyı boyunca uzanan sıcak yaz tonları.',
-    description:
-      'Arka plandaki sahneler sabit değil; dilediğimiz zaman görsel setini mevsime göre değiştirebiliriz.',
-    imageUrl:
-      'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1600&q=80',
-  },
-  {
-    eyebrow: 'Kaş Sahne 08',
-    title: 'Mavi, yeşil ve taş dokusunun dengesi.',
-    description:
-      'Bu yapı mobilde de kontrollü çalışacak; kart, başlık ve kontrol alanı birlikte akacak.',
-    imageUrl:
-      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=80',
-  },
-  {
-    eyebrow: 'Kaş Sahne 09',
-    title: 'Kalkan ve Kaş hattında güçlü bir yaz hissi.',
-    description:
-      'Öne çıkan yazılar, gezi rehberleri ve topluluk çağrıları için bu alan ana vitrin olarak kullanılacak.',
-    imageUrl:
-      'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=80',
-  },
-  {
-    eyebrow: 'Kaş Sahne 10',
-    title: 'Son sahne: sakin, temiz ve sinematik kapanış.',
-    description:
-      'Tüm sahneler alttaki kare göstergelerden tek tek seçilebilecek ve oklarla ileri geri gezilebilecek.',
-    imageUrl:
-      'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=1600&q=80',
-  },
-] as const
-
 export default function HomePage() {
   const [activeScene, setActiveScene] = useState(0)
+  const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(DEFAULT_HERO_SLIDES)
   const categoryMap = new Map(CATEGORIES.map((category) => [category.id, category]))
-  const scene = HERO_SCENES[activeScene]
+  const scene = heroSlides[activeScene] ?? heroSlides[0]
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setActiveScene((current) => (current + 1) % HERO_SCENES.length)
-    }, 5000)
+    let isMounted = true
 
-    return () => window.clearInterval(timer)
+    async function loadHeroSlides() {
+      try {
+        const response = await fetch('/api/hero-slides', {
+          cache: 'no-store',
+        })
+
+        const payload = (await response.json()) as { slides?: HeroSlide[] } | undefined
+
+        if (!response.ok || !payload?.slides?.length) {
+          return
+        }
+
+        if (isMounted) {
+          setHeroSlides(payload.slides)
+        }
+      } catch {
+        // Seed slides remain in place when the API is unavailable.
+      }
+    }
+
+    loadHeroSlides()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
+  useEffect(() => {
+    if (heroSlides.length <= 1) {
+      return
+    }
+
+    const timer = window.setInterval(() => {
+      setActiveScene((current) => (current + 1) % heroSlides.length)
+    }, HERO_ROTATION_MS)
+
+    return () => window.clearInterval(timer)
+  }, [heroSlides.length])
+
+  useEffect(() => {
+    setActiveScene((current) => (current >= heroSlides.length ? 0 : current))
+  }, [heroSlides.length])
+
   const goToPreviousScene = () => {
-    setActiveScene((current) => (current - 1 + HERO_SCENES.length) % HERO_SCENES.length)
+    setActiveScene((current) => (current - 1 + heroSlides.length) % heroSlides.length)
   }
 
   const goToNextScene = () => {
-    setActiveScene((current) => (current + 1) % HERO_SCENES.length)
+    setActiveScene((current) => (current + 1) % heroSlides.length)
+  }
+
+  if (!scene) {
+    return null
   }
 
   return (
@@ -190,9 +151,9 @@ export default function HomePage() {
               </div>
 
               <div className="hero-carousel-dots" aria-label="Hero sahneleri">
-                {HERO_SCENES.map((heroScene, index) => (
+                {heroSlides.map((heroScene, index) => (
                   <button
-                    key={heroScene.title}
+                    key={heroScene.id}
                     type="button"
                     className={`hero-carousel-dot${index === activeScene ? ' active' : ''}`}
                     onClick={() => setActiveScene(index)}
