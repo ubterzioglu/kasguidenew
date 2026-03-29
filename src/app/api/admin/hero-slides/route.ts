@@ -59,7 +59,7 @@ export async function PUT(request: Request) {
 
 function getAdminAccessError(request: Request) {
   if (!isAdminApiConfigured()) {
-    return NextResponse.json({ error: 'ADMIN_API_KEY tanimli degil.' }, { status: 503 })
+    return NextResponse.json({ error: 'ADMIN_PASSWORD tanimli degil.' }, { status: 503 })
   }
 
   if (!isHeroSlideStoreConfigured()) {

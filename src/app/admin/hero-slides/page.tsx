@@ -19,12 +19,11 @@ type PanelStatus = {
 
 const INITIAL_STATUS: PanelStatus = {
   tone: 'neutral',
-  message:
-    'Değişiklikler ancak API anahtarıyla kaydedilir. Anahtar sayfa yenilenince temizlenir.',
+  message: 'Degisiklikler admin parolasi ile kaydedilir. Parola sayfa yenilenince temizlenir.',
 }
 
 export default function HeroSlidesAdminPage() {
-  const [apiKey, setApiKey] = useState('')
+  const [adminPassword, setAdminPassword] = useState('')
   const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_HERO_SLIDES)
   const [status, setStatus] = useState<PanelStatus>(INITIAL_STATUS)
   const [storage, setStorage] = useState<'seed' | 'supabase'>('seed')
@@ -34,21 +33,21 @@ export default function HeroSlidesAdminPage() {
   const activeCount = useMemo(() => slides.filter((slide) => slide.isActive).length, [slides])
 
   async function loadSlides() {
-    if (!apiKey.trim()) {
+    if (!adminPassword.trim()) {
       setStatus({
         tone: 'error',
-        message: 'Hero panelini açmak için ADMIN_API_KEY değerini girmeniz gerekiyor.',
+        message: 'Hero panelini acmak icin ADMIN_PASSWORD degerini girmeniz gerekiyor.',
       })
       return
     }
 
     setIsLoading(true)
-    setStatus({ tone: 'neutral', message: 'Hero sahneleri yükleniyor...' })
+    setStatus({ tone: 'neutral', message: 'Hero sahneleri yukleniyor...' })
 
     try {
       const response = await fetch('/api/admin/hero-slides', {
         headers: {
-          'X-API-Key': apiKey.trim(),
+          'X-Admin-Password': adminPassword.trim(),
         },
         cache: 'no-store',
       })
@@ -58,19 +57,19 @@ export default function HeroSlidesAdminPage() {
         | undefined
 
       if (!response.ok || !payload?.slides) {
-        throw new Error(payload?.error || 'Hero sahneleri yüklenemedi.')
+        throw new Error(payload?.error || 'Hero sahneleri yuklenemedi.')
       }
 
       setSlides(reindexHeroSlides(payload.slides))
       setStorage(payload.storage || 'supabase')
       setStatus({
         tone: 'success',
-        message: 'Hero sahneleri yüklendi. Kaydetmeden canlıya yansımaz.',
+        message: 'Hero sahneleri yuklendi. Kaydetmeden canliya yansimaz.',
       })
     } catch (error) {
       setStatus({
         tone: 'error',
-        message: error instanceof Error ? error.message : 'Hero sahneleri yüklenemedi.',
+        message: error instanceof Error ? error.message : 'Hero sahneleri yuklenemedi.',
       })
     } finally {
       setIsLoading(false)
@@ -78,10 +77,10 @@ export default function HeroSlidesAdminPage() {
   }
 
   async function saveSlides() {
-    if (!apiKey.trim()) {
+    if (!adminPassword.trim()) {
       setStatus({
         tone: 'error',
-        message: 'Kaydetmek için ADMIN_API_KEY gerekli.',
+        message: 'Kaydetmek icin ADMIN_PASSWORD gerekli.',
       })
       return
     }
@@ -94,7 +93,7 @@ export default function HeroSlidesAdminPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': apiKey.trim(),
+          'X-Admin-Password': adminPassword.trim(),
         },
         body: JSON.stringify({ slides }),
       })
@@ -111,7 +110,7 @@ export default function HeroSlidesAdminPage() {
       setStorage(payload.storage || 'supabase')
       setStatus({
         tone: 'success',
-        message: 'Hero sahneleri kaydedildi. Ana sayfa yeni sırayı kullanacak.',
+        message: 'Hero sahneleri kaydedildi. Ana sayfa yeni sirayi kullanacak.',
       })
     } catch (error) {
       setStatus({
@@ -170,12 +169,12 @@ export default function HeroSlidesAdminPage() {
     <main className="container admin-shell">
       <section className="admin-hero">
         <div className="admin-hero-copy">
-          <span className="admin-eyebrow">Hero Yönetimi</span>
-          <h1 className="admin-title">Ana sayfa geçişlerini panelden yönetin</h1>
+          <span className="admin-eyebrow">Hero Yonetimi</span>
+          <h1 className="admin-title">Ana sayfa gecislerini panelden yonetin</h1>
           <p className="admin-description">
-            Bu ekran hero sahnelerinin başlığını, açıklamasını, görselini, sırasını ve aktiflik
-            durumunu yönetir. Kayıt için `ADMIN_API_KEY`, depolama için de
-            `SUPABASE_SERVICE_ROLE_KEY` gereklidir.
+            Bu ekran hero sahnelerinin basligini, aciklamasini, gorselini, sirasini ve aktiflik
+            durumunu yonetir. Giris icin `ADMIN_PASSWORD`, depolama icin `SUPABASE_SERVICE_ROLE_KEY`
+            gereklidir.
           </p>
         </div>
 
@@ -198,13 +197,13 @@ export default function HeroSlidesAdminPage() {
       <section className="admin-toolbar">
         <div className="admin-panel">
           <label className="admin-field">
-            <span className="admin-label">API anahtarı</span>
+            <span className="admin-label">Admin parolasi</span>
             <input
               className="admin-input"
               type="password"
-              placeholder="ADMIN_API_KEY"
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
+              placeholder="ADMIN_PASSWORD"
+              value={adminPassword}
+              onChange={(event) => setAdminPassword(event.target.value)}
             />
           </label>
 
@@ -215,7 +214,7 @@ export default function HeroSlidesAdminPage() {
               onClick={loadSlides}
               disabled={isLoading}
             >
-              {isLoading ? 'Yükleniyor...' : 'Sahneleri yükle'}
+              {isLoading ? 'Yukleniyor...' : 'Sahneleri yukle'}
             </button>
             <button
               type="button"
@@ -223,7 +222,7 @@ export default function HeroSlidesAdminPage() {
               onClick={saveSlides}
               disabled={isSaving}
             >
-              {isSaving ? 'Kaydediliyor...' : 'Değişiklikleri kaydet'}
+              {isSaving ? 'Kaydediliyor...' : 'Degisiklikleri kaydet'}
             </button>
           </div>
         </div>
@@ -237,8 +236,8 @@ export default function HeroSlidesAdminPage() {
         <div>
           <h2 className="admin-section-title">Sahne listesi</h2>
           <p className="admin-section-copy">
-            Her sahne ana sayfada aynı bileşeni kullanır. Sırayı değiştirdiğinizde carousel da aynı
-            sırayla akar.
+            Her sahne ana sayfada ayni bileseni kullanir. Sirayi degistirdiginizde carousel de ayni
+            sirayla akar.
           </p>
         </div>
 
@@ -262,7 +261,7 @@ export default function HeroSlidesAdminPage() {
               <div className="admin-slide-preview-shade"></div>
               <div className="admin-slide-preview-copy">
                 <span className="admin-slide-order">Sahne {index + 1}</span>
-                <strong>{slide.title || 'Başlık bekleniyor'}</strong>
+                <strong>{slide.title || 'Baslik bekleniyor'}</strong>
               </div>
             </div>
 
@@ -277,7 +276,7 @@ export default function HeroSlidesAdminPage() {
               </label>
 
               <label className="admin-field">
-                <span className="admin-label">Başlık</span>
+                <span className="admin-label">Baslik</span>
                 <input
                   className="admin-input"
                   value={slide.title}
@@ -286,7 +285,7 @@ export default function HeroSlidesAdminPage() {
               </label>
 
               <label className="admin-field">
-                <span className="admin-label">Açıklama</span>
+                <span className="admin-label">Aciklama</span>
                 <textarea
                   className="admin-textarea"
                   rows={4}
@@ -296,7 +295,7 @@ export default function HeroSlidesAdminPage() {
               </label>
 
               <label className="admin-field">
-                <span className="admin-label">Görsel URL</span>
+                <span className="admin-label">Gorsel URL</span>
                 <input
                   className="admin-input"
                   value={slide.imageUrl}
@@ -320,7 +319,7 @@ export default function HeroSlidesAdminPage() {
                   onClick={() => moveSlide(index, -1)}
                   disabled={index === 0}
                 >
-                  Yukarı al
+                  Yukari al
                 </button>
                 <button
                   type="button"
@@ -328,7 +327,7 @@ export default function HeroSlidesAdminPage() {
                   onClick={() => moveSlide(index, 1)}
                   disabled={index === slides.length - 1}
                 >
-                  Aşağı al
+                  Asagi al
                 </button>
                 <button
                   type="button"

@@ -1,8 +1,7 @@
-import 'server-only'
-
-import { createClient } from '@supabase/supabase-js'
+﻿import 'server-only'
 
 import { DEFAULT_HERO_SLIDES, reindexHeroSlides, type HeroSlide } from '@/lib/hero-slide-data'
+import { getSupabaseAdminClient } from '@/lib/supabase-admin'
 
 type HeroSlideRow = {
   id: string
@@ -73,10 +72,7 @@ export async function saveHeroSlides(slides: HeroSlide[]): Promise<HeroSlideSnap
   }
 
   const incomingIds = new Set(normalizedSlides.map((slide) => slide.id))
-  const idsToDelete =
-    existingRows
-      ?.map((row) => row.id)
-      .filter((id) => !incomingIds.has(id)) ?? []
+  const idsToDelete = existingRows?.map((row) => row.id).filter((id) => !incomingIds.has(id)) ?? []
 
   if (idsToDelete.length > 0) {
     const { error: deleteError } = await client.from(HERO_SLIDES_TABLE).delete().in('id', idsToDelete)
@@ -142,20 +138,4 @@ function mapHeroSlideRow(row: HeroSlideRow): HeroSlide {
     isActive: row.is_active,
     order: row.sort_order ?? 0,
   }
-}
-
-function getSupabaseAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    return null
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
 }

@@ -5,8 +5,17 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "node scripts/sync-next-server-chunks.mjs",
+    "sync:next-chunks": "node scripts/sync-next-server-chunks.mjs",
+    "prestart": "node scripts/sync-next-server-chunks.mjs",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "import:osm": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/import-osm.ts",
+    "import:google:grid": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/import-google-grid.ts",
+    "normalize:places": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/normalize-places.ts",
+    "dedupe:places": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/dedupe-places.ts",
+    "publish:reviewed": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/publish-reviewed.ts",
+    "test:google-places": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/test-google-places.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
