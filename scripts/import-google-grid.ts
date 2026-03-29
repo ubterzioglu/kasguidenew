@@ -1,4 +1,4 @@
-﻿import { appendFile } from 'node:fs/promises'
+import { appendFile } from 'node:fs/promises'
 
 import { getSupabaseAdminClient } from './lib/supabase-admin.ts'
 
@@ -448,12 +448,14 @@ function mapPlaceToRawInsert(place: GooglePlace, matchedType: string, target: Gr
 }
 
 function buildNextCandidates(gridX: number, gridY: number): NextCandidate[] {
-  return [
+  const baseCandidates: Array<Pick<NextCandidate, 'direction' | 'gridX' | 'gridY'>> = [
     { direction: 'right', gridX: gridX + 1, gridY },
     { direction: 'left', gridX: gridX - 1, gridY },
     { direction: 'up', gridX, gridY: gridY + 1 },
     { direction: 'down', gridX, gridY: gridY - 1 },
-  ].map((candidate) => ({
+  ]
+
+  return baseCandidates.map((candidate) => ({
     ...candidate,
     gridKey: toGridKey(candidate.gridX, candidate.gridY),
     cellId: toCellId(candidate.gridX, candidate.gridY),
