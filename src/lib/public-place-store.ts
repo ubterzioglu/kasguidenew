@@ -1,4 +1,4 @@
-import 'server-only'
+﻿import 'server-only'
 
 import { getSupabaseAdminClient } from '@/lib/supabase-admin'
 
@@ -191,3 +191,4 @@ export async function getPublishedPlaceBySlug(slug: string) {
     imageUrls,
   } satisfies PublicPlaceDetail
 }
+
