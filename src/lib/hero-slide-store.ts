@@ -1,4 +1,4 @@
-﻿import 'server-only'
+import 'server-only'
 
 import { DEFAULT_HERO_SLIDES, reindexHeroSlides, type HeroSlide } from '@/lib/hero-slide-data'
 import { getSupabaseAdminClient } from '@/lib/supabase-admin'
@@ -8,6 +8,7 @@ type HeroSlideRow = {
   eyebrow: string
   title: string
   description: string
+  tags: string[] | null
   image_url: string
   is_active: boolean
   sort_order: number | null
@@ -50,6 +51,7 @@ export async function saveHeroSlides(slides: HeroSlide[]): Promise<HeroSlideSnap
     eyebrow: slide.eyebrow,
     title: slide.title,
     description: slide.description,
+    tags: slide.tags,
     image_url: slide.imageUrl,
     is_active: slide.isActive,
     sort_order: slide.order,
@@ -100,7 +102,7 @@ async function readHeroSlides(onlyActive: boolean): Promise<HeroSlideSnapshot> {
 
   let query = client
     .from(HERO_SLIDES_TABLE)
-    .select('id, eyebrow, title, description, image_url, is_active, sort_order')
+    .select('id, eyebrow, title, description, tags, image_url, is_active, sort_order')
     .order('sort_order', { ascending: true })
 
   if (onlyActive) {
@@ -134,6 +136,7 @@ function mapHeroSlideRow(row: HeroSlideRow): HeroSlide {
     eyebrow: row.eyebrow,
     title: row.title,
     description: row.description,
+    tags: row.tags ?? [],
     imageUrl: row.image_url,
     isActive: row.is_active,
     order: row.sort_order ?? 0,

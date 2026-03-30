@@ -15,7 +15,9 @@
     "normalize:places": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/normalize-places.ts",
     "dedupe:places": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/dedupe-places.ts",
     "publish:reviewed": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/publish-reviewed.ts",
-    "test:google-places": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/test-google-places.ts"
+    "reset:ingestion": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/reset-ingestion.ts",
+    "test:google-places": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/test-google-places.ts",
+    "seed:sample-bar": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --env-file=.env.local --experimental-strip-types scripts/seed-sample-bar.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",

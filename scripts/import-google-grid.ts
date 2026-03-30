@@ -22,6 +22,9 @@ type GooglePlace = {
     text?: string
   }
   formattedAddress?: string
+  websiteUri?: string
+  nationalPhoneNumber?: string
+  internationalPhoneNumber?: string
   location?: {
     latitude?: number
     longitude?: number
@@ -79,6 +82,9 @@ const GOOGLE_FIELD_MASK = [
   'places.id',
   'places.displayName',
   'places.formattedAddress',
+  'places.websiteUri',
+  'places.nationalPhoneNumber',
+  'places.internationalPhoneNumber',
   'places.location',
   'places.googleMapsUri',
   'places.primaryType',
@@ -430,8 +436,8 @@ function mapPlaceToRawInsert(place: GooglePlace, matchedType: string, target: Gr
     lat: place.location?.latitude ?? null,
     lng: place.location?.longitude ?? null,
     address_raw: place.formattedAddress?.trim() || null,
-    website_raw: null,
-    phone_raw: null,
+    website_raw: place.websiteUri?.trim() || null,
+    phone_raw: place.internationalPhoneNumber?.trim() || place.nationalPhoneNumber?.trim() || null,
     category_raw: place.primaryType ?? matchedType,
     raw_payload: {
       google: {

@@ -1,0 +1,6 @@
+{
+  "/api/hero-slides/route": "/api/hero-slides",
+  "/api/admin/session/route": "/api/admin/session",
+  "/page": "/",
+  "/admin/page": "/admin"
+}

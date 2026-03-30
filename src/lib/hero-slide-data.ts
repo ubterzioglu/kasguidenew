@@ -1,8 +1,9 @@
-export type HeroSlide = {
+﻿export type HeroSlide = {
   id: string
   eyebrow: string
   title: string
   description: string
+  tags: string[]
   imageUrl: string
   isActive: boolean
   order: number
@@ -16,8 +17,8 @@ const HERO_SLIDE_SEEDS: HeroSlide[] = [
     id: 'hero-scene-01',
     eyebrow: 'Kaş Sahne 01',
     title: 'Akşam ışığında Kaş kıyıları.',
-    description:
-      'Hero alanında dönüşümlü olarak duyurular, etkinlikler ve öne çıkan rotalar bu sahnelerin üstünde gösterilecek.',
+    description: 'Gün batımı, mekan önerileri ve sezonun en güzel rotaları tek vitrinde.',
+    tags: ['Gün Batımı', 'Öne Çıkan', 'Kaş Merkez'],
     imageUrl:
       'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
@@ -26,9 +27,9 @@ const HERO_SLIDE_SEEDS: HeroSlide[] = [
   {
     id: 'hero-scene-02',
     eyebrow: 'Kaş Sahne 02',
-    title: 'Turkuaz su, kıyı çizgisi ve sakin bir gün.',
-    description:
-      'Büyük başlıklar, kısa açıklamalar ve kampanya mesajları için sinematik bir arka plan akışına uygun bir sahne.',
+    title: 'Turkuaz su, sakin koylar ve hafif bir yaz günü.',
+    description: 'Plajlar, deniz keyfi ve günlük kaçamaklar için ferah bir sahne akışı.',
+    tags: ['Plaj', 'Deniz', 'Yaz'],
     imageUrl:
       'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
@@ -37,9 +38,9 @@ const HERO_SLIDE_SEEDS: HeroSlide[] = [
   {
     id: 'hero-scene-03',
     eyebrow: 'Kaş Sahne 03',
-    title: 'Patara yönünde geniş ufuk ve sahil dokusu.',
-    description:
-      'Her sahne farklı bir atmosfer taşıyabilir; yaz sezonu, etkinlik haftası ya da yerel öneriler gibi.',
+    title: 'Ufka açılan sahil rotaları ve geniş manzara.',
+    description: 'Keşif, doğa ve yol üstü durakları tek hero akışı içinde anlatmak için uygun.',
+    tags: ['Keşif', 'Doğa', 'Rota'],
     imageUrl:
       'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
@@ -48,9 +49,9 @@ const HERO_SLIDE_SEEDS: HeroSlide[] = [
   {
     id: 'hero-scene-04',
     eyebrow: 'Kaş Sahne 04',
-    title: 'Kıyıya açılan tekneler ve yazın hafifliği.',
-    description:
-      'Bu vitrin yapısı, tek ekranda hem görsel etki hem de hızlı yönlendirme vermek için tasarlandı.',
+    title: 'Tekneler, kıyılar ve yazın hafifliği.',
+    description: 'Etkinlikler, kısa duyurular ve haftalık öneri seçimleri için esnek bir sahne.',
+    tags: ['Etkinlik', 'Duyuru', 'Yaz'],
     imageUrl:
       'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
@@ -59,9 +60,9 @@ const HERO_SLIDE_SEEDS: HeroSlide[] = [
   {
     id: 'hero-scene-05',
     eyebrow: 'Kaş Sahne 05',
-    title: 'Deniz, taş kıyı ve maviye bakan rotalar.',
-    description:
-      'Carousel altındaki oklar ve geçiş kareleri sayesinde içerikler kolayca gezilebilecek.',
+    title: 'Maviye bakan taş kıyılar ve yavaş akan bir rota.',
+    description: 'Mekan seçimleri, öne çıkan rehberler ve hafta sonu önerileri için hazır.',
+    tags: ['Rehber', 'Mekan', 'Hafta Sonu'],
     imageUrl:
       'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
@@ -70,9 +71,9 @@ const HERO_SLIDE_SEEDS: HeroSlide[] = [
   {
     id: 'hero-scene-06',
     eyebrow: 'Kaş Sahne 06',
-    title: 'Yumuşak gün batımıyla Kaş manzarası.',
-    description:
-      'Hero sahneleri kampanya, festival, plaj önerisi ya da özel içerik serisi gibi farklı ihtiyaçlara uyarlanabilir.',
+    title: 'Yumuşak gün batımıyla sakin bir Kaş manzarası.',
+    description: 'Festival, kampanya ya da özel içerik serilerini öne çıkarmak için kullanılabilir.',
+    tags: ['Festival', 'Kampanya', 'Özel İçerik'],
     imageUrl:
       'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=1600&q=80',
     isActive: true,
@@ -96,6 +97,7 @@ export function createEmptyHeroSlide(order: number): HeroSlide {
     eyebrow: `Kaş Sahne ${String(order + 1).padStart(2, '0')}`,
     title: '',
     description: '',
+    tags: ['Öne Çıkan'],
     imageUrl: '',
     isActive: true,
     order,
@@ -105,6 +107,10 @@ export function createEmptyHeroSlide(order: number): HeroSlide {
 export function reindexHeroSlides(slides: HeroSlide[]): HeroSlide[] {
   return slides.map((slide, index) => ({
     ...slide,
+    eyebrow: repairMojibakeText(slide.eyebrow),
+    title: repairMojibakeText(slide.title),
+    description: repairMojibakeText(slide.description),
+    tags: normalizeTagList(slide.tags),
     order: index,
   }))
 }
@@ -150,9 +156,10 @@ function normalizeHeroSlideItem(input: unknown, index: number): HeroSlide {
 
   return {
     id: rawId || createHeroSlideId(),
-    eyebrow: readTextField(record.eyebrow, 'Etiket', 1, 48),
+    eyebrow: readTextField(record.eyebrow, 'Üst etiket', 1, 48),
     title: readTextField(record.title, 'Başlık', 3, 120),
-    description: readTextField(record.description, 'Açıklama', 10, 320),
+    description: readTextField(record.description, 'Alt başlık', 10, 220),
+    tags: readTagsField(record.tags),
     imageUrl: readUrlField(record.imageUrl),
     isActive: Boolean(record.isActive),
     order: index,
@@ -178,6 +185,20 @@ function readTextField(
   return text
 }
 
+function readTagsField(value: unknown): string[] {
+  const tags = normalizeTagList(value)
+
+  if (tags.length === 0) {
+    throw new Error('En az bir tag girilmeli.')
+  }
+
+  if (tags.length > 6) {
+    throw new Error('Bir slide için en fazla 6 tag kullanabilirsiniz.')
+  }
+
+  return tags
+}
+
 function readUrlField(value: unknown): string {
   const text = toTrimmedString(value)
 
@@ -200,6 +221,32 @@ function readUrlField(value: unknown): string {
   return url.toString()
 }
 
+function normalizeTagList(value: unknown): string[] {
+  const items = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(',')
+      : []
+
+  return items
+    .map((item) => toTrimmedString(item))
+    .filter(Boolean)
+    .slice(0, 6)
+}
+
 function toTrimmedString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
+  return typeof value === 'string' ? repairMojibakeText(value).trim() : ''
+}
+
+function repairMojibakeText(value: string): string {
+  if (!/[ÃÅÄâ]/.test(value)) {
+    return value
+  }
+
+  try {
+    const bytes = Uint8Array.from(Array.from(value), (char) => char.charCodeAt(0) & 0xff)
+    return new TextDecoder('utf-8').decode(bytes)
+  } catch {
+    return value
+  }
 }

@@ -1,0 +1,6 @@
+{
+  "/api/hero-slides/route": "app/api/hero-slides/route.js",
+  "/api/admin/session/route": "app/api/admin/session/route.js",
+  "/page": "app/page.js",
+  "/admin/page": "app/admin/page.js"
+}

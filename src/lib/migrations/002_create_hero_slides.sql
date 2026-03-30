@@ -3,6 +3,7 @@ create table if not exists public.hero_slides (
   eyebrow text not null,
   title text not null,
   description text not null,
+  tags text[] not null default '{}'::text[],
   image_url text not null,
   is_active boolean not null default true,
   sort_order integer not null default 0,

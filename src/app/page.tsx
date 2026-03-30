@@ -1,37 +1,65 @@
-'use client'
+﻿'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 import { DEFAULT_HERO_SLIDES, HERO_ROTATION_MS, type HeroSlide } from '@/lib/hero-slide-data'
 import { CATEGORIES } from '@/lib/supabase'
 
+type CategoryPlace = {
+  id: string
+  slug: string
+  name: string
+  headline: string
+  shortDescription: string
+  categoryPrimary: string
+  address: string | null
+  phone: string | null
+  website: string | null
+  imageUrl: string | null
+}
+
 const CATEGORY_GROUPS = [
   {
-    title: 'YEME & İÇME & KONAKLAMA',
+    title: 'YEME & ICME & KONAKLAMA',
     tone: 'food',
     ids: ['bar', 'meyhane', 'restoran', 'cafe', 'kahvalti', 'oteller'],
   },
   {
-    title: 'GEZİ & KEŞİF',
+    title: 'GEZI & KESIF',
     tone: 'explore',
     ids: ['tarih', 'doga', 'plaj', 'carsi', 'gezi'],
   },
   {
-    title: 'AKTİVİTE & EĞLENCE',
+    title: 'AKTIVITE & EGLENCE',
     tone: 'fun',
     ids: ['dalis', 'aktivite', 'etkinlik'],
   },
   {
-    title: 'İÇERİK & MEDYA',
+    title: 'ICERIK & MEDYA',
     tone: 'editorial',
     ids: ['yazilar', 'roportaj', 'fotograf', 'oss', 'kas-local'],
   },
 ] as const
 
+const CATEGORY_IDS = CATEGORY_GROUPS.flatMap((group) => group.ids)
+const CATEGORY_MAP = new Map(CATEGORIES.map((category) => [category.id, category]))
+const CATEGORY_ROW_SPLIT_INDEX = Math.ceil(CATEGORY_IDS.length / 2)
+const CATEGORY_ROWS = [
+  CATEGORY_IDS.slice(0, CATEGORY_ROW_SPLIT_INDEX),
+  CATEGORY_IDS.slice(CATEGORY_ROW_SPLIT_INDEX),
+]
+
 export default function HomePage() {
   const [activeScene, setActiveScene] = useState(0)
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(DEFAULT_HERO_SLIDES)
-  const categoryMap = new Map(CATEGORIES.map((category) => [category.id, category]))
+  const [activeCategoryIds, setActiveCategoryIds] = useState<string[]>([])
+  const [categoryPlaces, setCategoryPlaces] = useState<CategoryPlace[]>([])
+  const [isCategoryLoading, setIsCategoryLoading] = useState(false)
+  const [categoryStatus, setCategoryStatus] = useState(
+    'Bir veya birden fazla kategori secerek yayindaki mekanlari gorebilirsin.',
+  )
+
   const scene = heroSlides[activeScene] ?? heroSlides[0]
 
   useEffect(() => {
@@ -57,7 +85,7 @@ export default function HomePage() {
       }
     }
 
-    loadHeroSlides()
+    void loadHeroSlides()
 
     return () => {
       isMounted = false
@@ -80,13 +108,130 @@ export default function HomePage() {
     setActiveScene((current) => (current >= heroSlides.length ? 0 : current))
   }, [heroSlides.length])
 
-  const goToPreviousScene = () => {
-    setActiveScene((current) => (current - 1 + heroSlides.length) % heroSlides.length)
+  function resolveCategoryTone(categoryId: string) {
+    return (
+      CATEGORY_GROUPS.find((group) => (group.ids as readonly string[]).includes(categoryId))?.tone ??
+      'food'
+    )
   }
 
-  const goToNextScene = () => {
-    setActiveScene((current) => (current + 1) % heroSlides.length)
+  function toggleCategoryFilter(categoryId: string) {
+    setActiveCategoryIds((current) =>
+      current.includes(categoryId)
+        ? current.filter((id) => id !== categoryId)
+        : [...current, categoryId],
+    )
   }
+
+  function renderCategoryTile(categoryId: string) {
+    const category = CATEGORY_MAP.get(categoryId)
+
+    if (!category) {
+      return null
+    }
+
+    const tone = resolveCategoryTone(category.id)
+    const isActive = activeCategoryIds.includes(category.id)
+
+    return (
+      <button
+        key={category.id}
+        type="button"
+        className={`category-tile category-tile-${tone}${isActive ? ' is-active' : ''}`}
+        onClick={() => toggleCategoryFilter(category.id)}
+        aria-pressed={isActive}
+      >
+        <span className="category-tile-main">
+          <strong className="category-tile-label">{category.name}</strong>
+          <span className="category-tile-separator" aria-hidden="true">
+            |
+          </span>
+        </span>
+      </button>
+    )
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadCategoryPlaces() {
+      if (activeCategoryIds.length === 0) {
+        setCategoryPlaces([])
+        setIsCategoryLoading(false)
+        setCategoryStatus('Bir veya birden fazla kategori secerek yayindaki mekanlari gorebilirsin.')
+        return
+      }
+
+      const selectedCategoryNames = activeCategoryIds
+        .map((categoryId) => CATEGORY_MAP.get(categoryId)?.name || categoryId)
+        .filter(Boolean)
+
+      setIsCategoryLoading(true)
+      setCategoryStatus(`${selectedCategoryNames.join(', ')} icin mekanlar yukleniyor...`)
+
+      try {
+        const responses = await Promise.all(
+          activeCategoryIds.map((categoryId) =>
+            fetch(`/api/places?category=${encodeURIComponent(categoryId)}`, {
+              cache: 'no-store',
+            }),
+          ),
+        )
+
+        const payloads = await Promise.all(
+          responses.map(async (response) => ({
+            ok: response.ok,
+            payload: (await response.json()) as { places?: CategoryPlace[]; error?: string },
+          })),
+        )
+
+        const failedResponse = payloads.find((entry) => !entry.ok)
+
+        if (failedResponse) {
+          throw new Error(failedResponse.payload.error || 'Mekanlar yuklenemedi.')
+        }
+
+        const mergedPlaces = new Map<string, CategoryPlace>()
+
+        for (const entry of payloads) {
+          for (const place of entry.payload.places ?? []) {
+            if (!mergedPlaces.has(place.id)) {
+              mergedPlaces.set(place.id, place)
+            }
+          }
+        }
+
+        if (cancelled) {
+          return
+        }
+
+        const places = Array.from(mergedPlaces.values())
+        setCategoryPlaces(places)
+        setCategoryStatus(
+          places.length > 0
+            ? `${selectedCategoryNames.join(', ')} icin ${places.length} yayin kaydi bulundu.`
+            : 'Secili kategoriler icin henuz yayinda mekan yok.',
+        )
+      } catch (error) {
+        if (cancelled) {
+          return
+        }
+
+        setCategoryPlaces([])
+        setCategoryStatus(error instanceof Error ? error.message : 'Mekanlar yuklenemedi.')
+      } finally {
+        if (!cancelled) {
+          setIsCategoryLoading(false)
+        }
+      }
+    }
+
+    void loadCategoryPlaces()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeCategoryIds])
 
   if (!scene) {
     return null
@@ -110,14 +255,16 @@ export default function HomePage() {
               <p className="hero-featured-description">{scene.description}</p>
 
               <div className="hero-featured-meta">
-                <span className="hero-meta-chip">Duyuru</span>
-                <span className="hero-meta-chip">Etkinlik</span>
-                <span className="hero-meta-chip">Öne Çıkan</span>
+                {scene.tags.map((tag) => (
+                  <span key={`${scene.id}-${tag}`} className="hero-meta-chip">
+                    {tag}
+                  </span>
+                ))}
               </div>
 
               <div className="hero-featured-actions">
                 <a href="#categories" className="hero-primary-action">
-                  Kategorileri Gör
+                  Kategorileri Gor
                 </a>
                 <a
                   href="https://chat.whatsapp.com/GODQNmpRlAaDDtyaDnIyn4"
@@ -125,7 +272,7 @@ export default function HomePage() {
                   rel="noopener noreferrer"
                   className="hero-secondary-action"
                 >
-                  WhatsApp Topluluğu
+                  WhatsApp Toplulugu
                 </a>
               </div>
             </div>
@@ -135,15 +282,17 @@ export default function HomePage() {
                 <button
                   type="button"
                   className="hero-carousel-arrow"
-                  onClick={goToPreviousScene}
-                  aria-label="Önceki sahne"
+                  onClick={() =>
+                    setActiveScene((current) => (current - 1 + heroSlides.length) % heroSlides.length)
+                  }
+                  aria-label="Onceki sahne"
                 >
                   ‹
                 </button>
                 <button
                   type="button"
                   className="hero-carousel-arrow"
-                  onClick={goToNextScene}
+                  onClick={() => setActiveScene((current) => (current + 1) % heroSlides.length)}
                   aria-label="Sonraki sahne"
                 >
                   ›
@@ -164,79 +313,102 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-
-          <div className="search-box hero-search-box">
-            <svg
-              className="search-icon"
-              style={{ width: '24px', height: '24px', margin: '0 0.5rem', color: '#666' }}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-            <input type="text" placeholder="Kaş'ta ara" className="search-input" />
-            <button className="search-button">Filtreleri Temizle</button>
-          </div>
         </div>
       </section>
 
       <section
         className="container home-categories-section"
         id="categories"
-        style={{ padding: '2rem 1rem' }}
+        style={{
+          width: 'min(1200px, calc(100% - 2rem))',
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: '2rem 1rem',
+        }}
       >
-        <div className="section-header" style={{ marginBottom: '1rem' }}>
-          <h3 className="section-title">Kategori seç.</h3>
+        <div className="category-topline">
+          <h3 className="section-title">Kategori Sec!</h3>
+          <span className="category-filter-count">{`${activeCategoryIds.length} aktif filtre`}</span>
         </div>
 
-        <div className="category-groups-panel">
-          {CATEGORY_GROUPS.map((group) => (
-            <section key={group.title} className="category-group">
-              <div className="category-group-header">
-                <h4 className="category-group-title">{group.title}</h4>
-                <span className="category-group-line" aria-hidden="true"></span>
-              </div>
-
-              <div className="category-pill-list">
-                {group.ids.map((categoryId) => {
-                  const category = categoryMap.get(categoryId)
-
-                  if (!category) {
-                    return null
-                  }
-
-                  return (
-                    <button
-                      key={category.id}
-                      type="button"
-                      className={`category-card-large category-card-large-${group.tone}`}
-                    >
-                      <div
-                        className="category-card-large-media"
-                        style={{ backgroundImage: `url(${category.imageUrl})` }}
-                      ></div>
-                      <div className="category-card-large-body">
-                        <span className="category-card-large-label">{category.name}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </section>
+        <div className="category-pill-list category-pill-list-all">
+          {CATEGORY_ROWS.map((row, index) => (
+            <div
+              key={`category-row-${index + 1}`}
+              className={`category-pill-row category-pill-row-${index + 1}`}
+              style={{ ['--category-columns' as any]: row.length }}
+            >
+              {row.map((categoryId) => renderCategoryTile(categoryId))}
+            </div>
           ))}
         </div>
+
+        <div className="search-box category-search-box">
+          <input type="text" placeholder="Kas'ta ara" className="search-input" />
+          <button className="search-button">Ara</button>
+        </div>
+
+        <section className="category-results-shell">
+          <div className="category-results-header">
+            <div>
+              <h4 className="category-results-title">
+                {activeCategoryIds.length > 0
+                  ? `${activeCategoryIds.length} Kategori Icin Mekanlar`
+                  : 'Yayindaki Mekanlar'}
+              </h4>
+              <p className="category-results-copy">{categoryStatus}</p>
+            </div>
+          </div>
+
+          {activeCategoryIds.length > 0 ? (
+            isCategoryLoading ? (
+              <div className="category-results-empty">Mekanlar yukleniyor...</div>
+            ) : categoryPlaces.length === 0 ? (
+              <div className="category-results-empty">
+                Secili kategoriler icin henuz yayina alinmis mekan yok.
+              </div>
+            ) : (
+              <div className="category-results-grid">
+                {categoryPlaces.map((place) => (
+                  <Link key={place.id} href={`/mekan/${place.slug}`} className="category-place-card">
+                    <div
+                      className="category-place-media"
+                      style={{
+                        backgroundImage: `url(${
+                          place.imageUrl || CATEGORY_MAP.get(place.categoryPrimary)?.imageUrl || ''
+                        })`,
+                      }}
+                    ></div>
+                    <div className="category-place-body">
+                      <span className="category-place-eyebrow">
+                        {CATEGORY_MAP.get(place.categoryPrimary)?.name || place.categoryPrimary}
+                      </span>
+                      <h5 className="category-place-title">{place.headline || place.name}</h5>
+                      <p className="category-place-copy">{place.shortDescription}</p>
+                      <div className="category-place-meta">
+                        <span>{place.address || 'Adres yok'}</span>
+                        {place.phone ? <span>{place.phone}</span> : null}
+                        {place.website ? (
+                          <a href={place.website} target="_blank" rel="noopener noreferrer">
+                            Website
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )
+          ) : (
+            <div className="category-results-empty">
+              Ustteki pill kartlardan bir veya birkacina tikla, yayindaki mekanlari burada gorelim.
+            </div>
+          )}
+        </section>
       </section>
 
       <footer className="footer" id="contact">
         <div className="footer-content">
-          <div className="footer-logo">
-            <span className="footer-brand">Kaş Guide</span>
-          </div>
-          <p className="footer-tagline">Akdeniz'in incisi Kaş'ı keşfet</p>
-
           <div className="footer-social">
             <a href="mailto:info@kasguide.de" className="footer-social-link" aria-label="E-posta">
               <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
@@ -289,18 +461,10 @@ export default function HomePage() {
             </a>
           </div>
 
-          <a
-            href="https://wa.me/4915258450111"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="footer-contact-link"
-          >
-            WhatsApp: +49 152 584 50 111
-          </a>
-
-          <p className="footer-copyright">@2026 Kaş Guide. Tüm Hakları Saklıdır</p>
+          <p className="footer-copyright">@2026 Kas Guide. Tum Haklari Saklidir</p>
         </div>
       </footer>
     </>
   )
 }
+

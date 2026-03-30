@@ -1,7 +1,14 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
+import {
+  clearStoredAdminPassword,
+  getStoredAdminPassword,
+  storeAdminPassword,
+} from '@/lib/admin-password-client'
 import {
   DEFAULT_HERO_SLIDES,
   MAX_HERO_SLIDES,
@@ -19,10 +26,11 @@ type PanelStatus = {
 
 const INITIAL_STATUS: PanelStatus = {
   tone: 'neutral',
-  message: 'Degisiklikler admin parolasi ile kaydedilir. Parola sayfa yenilenince temizlenir.',
+  message: 'Hero paneli hazırlanıyor...',
 }
 
 export default function HeroSlidesAdminPage() {
+  const router = useRouter()
   const [adminPassword, setAdminPassword] = useState('')
   const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_HERO_SLIDES)
   const [status, setStatus] = useState<PanelStatus>(INITIAL_STATUS)
@@ -32,22 +40,33 @@ export default function HeroSlidesAdminPage() {
 
   const activeCount = useMemo(() => slides.filter((slide) => slide.isActive).length, [slides])
 
-  async function loadSlides() {
-    if (!adminPassword.trim()) {
-      setStatus({
-        tone: 'error',
-        message: 'Hero panelini acmak icin ADMIN_PASSWORD degerini girmeniz gerekiyor.',
-      })
+  useEffect(() => {
+    const storedPassword = getStoredAdminPassword()
+
+    if (!storedPassword) {
+      router.replace('/admin')
+      return
+    }
+
+    setAdminPassword(storedPassword)
+    void loadSlides(storedPassword, true)
+  }, [router])
+
+  async function loadSlides(passwordOverride?: string, redirectOnAuthError = false) {
+    const password = (passwordOverride ?? adminPassword).trim()
+
+    if (!password) {
+      router.replace('/admin')
       return
     }
 
     setIsLoading(true)
-    setStatus({ tone: 'neutral', message: 'Hero sahneleri yukleniyor...' })
+    setStatus({ tone: 'neutral', message: 'Hero sahneleri yükleniyor...' })
 
     try {
       const response = await fetch('/api/admin/hero-slides', {
         headers: {
-          'X-Admin-Password': adminPassword.trim(),
+          'X-Admin-Password': password,
         },
         cache: 'no-store',
       })
@@ -57,19 +76,29 @@ export default function HeroSlidesAdminPage() {
         | undefined
 
       if (!response.ok || !payload?.slides) {
-        throw new Error(payload?.error || 'Hero sahneleri yuklenemedi.')
+        throw new Error(payload?.error || 'Hero sahneleri yüklenemedi.')
       }
 
+      storeAdminPassword(password)
+      setAdminPassword(password)
       setSlides(reindexHeroSlides(payload.slides))
       setStorage(payload.storage || 'supabase')
       setStatus({
         tone: 'success',
-        message: 'Hero sahneleri yuklendi. Kaydetmeden canliya yansimaz.',
+        message: 'Hero sahneleri yüklendi. Kaydetmeden canlıya yansımaz.',
       })
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Hero sahneleri yüklenemedi.'
+
+      if (redirectOnAuthError && message.toLowerCase().includes('yetkisiz')) {
+        clearStoredAdminPassword()
+        router.replace('/admin')
+        return
+      }
+
       setStatus({
         tone: 'error',
-        message: error instanceof Error ? error.message : 'Hero sahneleri yuklenemedi.',
+        message,
       })
     } finally {
       setIsLoading(false)
@@ -77,11 +106,10 @@ export default function HeroSlidesAdminPage() {
   }
 
   async function saveSlides() {
-    if (!adminPassword.trim()) {
-      setStatus({
-        tone: 'error',
-        message: 'Kaydetmek icin ADMIN_PASSWORD gerekli.',
-      })
+    const password = adminPassword.trim()
+
+    if (!password) {
+      router.replace('/admin')
       return
     }
 
@@ -93,7 +121,7 @@ export default function HeroSlidesAdminPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'X-Admin-Password': adminPassword.trim(),
+          'X-Admin-Password': password,
         },
         body: JSON.stringify({ slides }),
       })
@@ -106,11 +134,12 @@ export default function HeroSlidesAdminPage() {
         throw new Error(payload?.error || 'Hero sahneleri kaydedilemedi.')
       }
 
+      storeAdminPassword(password)
       setSlides(reindexHeroSlides(payload.slides))
       setStorage(payload.storage || 'supabase')
       setStatus({
         tone: 'success',
-        message: 'Hero sahneleri kaydedildi. Ana sayfa yeni sirayi kullanacak.',
+        message: 'Hero sahneleri kaydedildi. Ana sayfa yeni sırayı kullanacak.',
       })
     } catch (error) {
       setStatus({
@@ -122,12 +151,22 @@ export default function HeroSlidesAdminPage() {
     }
   }
 
-  function updateSlide(index: number, field: keyof HeroSlide, value: string | boolean) {
+  function updateSlide(index: number, field: keyof HeroSlide, value: string | boolean | string[]) {
     setSlides((currentSlides) =>
       currentSlides.map((slide, slideIndex) =>
         slideIndex === index ? { ...slide, [field]: value } : slide,
       ),
     )
+  }
+
+  function updateSlideTags(index: number, value: string) {
+    const tags = value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 6)
+
+    updateSlide(index, 'tags', tags)
   }
 
   function addSlide() {
@@ -165,56 +204,50 @@ export default function HeroSlidesAdminPage() {
     })
   }
 
+  function logout() {
+    clearStoredAdminPassword()
+    setAdminPassword('')
+    router.replace('/admin')
+  }
+
   return (
     <main className="container admin-shell">
       <section className="admin-hero">
         <div className="admin-hero-copy">
-          <span className="admin-eyebrow">Hero Yonetimi</span>
-          <h1 className="admin-title">Ana sayfa gecislerini panelden yonetin</h1>
+          <span className="admin-eyebrow">Hero Yönetimi</span>
+          <h1 className="admin-title">Slide show kontrol paneli</h1>
           <p className="admin-description">
-            Bu ekran hero sahnelerinin basligini, aciklamasini, gorselini, sirasini ve aktiflik
-            durumunu yonetir. Giris icin `ADMIN_PASSWORD`, depolama icin `SUPABASE_SERVICE_ROLE_KEY`
-            gereklidir.
+            Hero alanındaki slide'ları buradan yönetebilirsiniz. Her slide için foto, üst etiket,
+            başlık, alt başlık ve tag listesi düzenlenebilir.
           </p>
         </div>
 
         <div className="admin-summary-card">
           <div className="admin-summary-item">
-            <span className="admin-summary-label">Toplam sahne</span>
+            <span className="admin-summary-label">Toplam slide</span>
             <strong>{slides.length}</strong>
           </div>
           <div className="admin-summary-item">
-            <span className="admin-summary-label">Aktif sahne</span>
+            <span className="admin-summary-label">Aktif slide</span>
             <strong>{activeCount}</strong>
           </div>
           <div className="admin-summary-item">
             <span className="admin-summary-label">Depolama</span>
-            <strong>{storage === 'supabase' ? 'Supabase' : 'Seed fallback'}</strong>
+            <strong>{storage === 'supabase' ? 'Supabase' : 'Seed yedeği'}</strong>
           </div>
         </div>
       </section>
 
       <section className="admin-toolbar">
-        <div className="admin-panel">
-          <label className="admin-field">
-            <span className="admin-label">Admin parolasi</span>
-            <input
-              className="admin-input"
-              type="password"
-              placeholder="ADMIN_PASSWORD"
-              value={adminPassword}
-              onChange={(event) => setAdminPassword(event.target.value)}
-            />
-          </label>
-
+        <div className="admin-panel admin-panel-links">
           <div className="admin-toolbar-actions">
             <button
               type="button"
               className="admin-button admin-button-secondary"
-              onClick={loadSlides}
+              onClick={() => loadSlides()}
               disabled={isLoading}
             >
-              {isLoading ? 'Yukleniyor...' : 'Sahneleri yukle'}
+              {isLoading ? 'Yükleniyor...' : 'Slaytları yenile'}
             </button>
             <button
               type="button"
@@ -222,7 +255,17 @@ export default function HeroSlidesAdminPage() {
               onClick={saveSlides}
               disabled={isSaving}
             >
-              {isSaving ? 'Kaydediliyor...' : 'Degisiklikleri kaydet'}
+              {isSaving ? 'Kaydediliyor...' : 'Değişiklikleri kaydet'}
+            </button>
+            <Link href="/admin" className="admin-button admin-button-secondary admin-button-link">
+              Admin ana sayfa
+            </Link>
+            <button
+              type="button"
+              className="admin-button admin-button-secondary"
+              onClick={logout}
+            >
+              Çıkış yap
             </button>
           </div>
         </div>
@@ -234,10 +277,9 @@ export default function HeroSlidesAdminPage() {
 
       <section className="admin-list-header">
         <div>
-          <h2 className="admin-section-title">Sahne listesi</h2>
+          <h2 className="admin-section-title">Slide listesi</h2>
           <p className="admin-section-copy">
-            Her sahne ana sayfada ayni bileseni kullanir. Sirayi degistirdiginizde carousel de ayni
-            sirayla akar.
+            Buradan hero slide'larını ekleyebilir, çıkarabilir, sırasını değiştirebilir ve içeriğini anında güncelleyebilirsiniz.
           </p>
         </div>
 
@@ -247,7 +289,7 @@ export default function HeroSlidesAdminPage() {
           onClick={addSlide}
           disabled={slides.length >= MAX_HERO_SLIDES}
         >
-          Yeni sahne ekle
+          Yeni slide ekle
         </button>
       </section>
 
@@ -256,18 +298,41 @@ export default function HeroSlidesAdminPage() {
           <article key={slide.id} className="admin-slide-card">
             <div
               className="admin-slide-preview"
-              style={{ backgroundImage: `url(${slide.imageUrl || '/upup.png'})` }}
+              style={{
+                backgroundImage: `url(${slide.imageUrl || '/upup.png'})`,
+                backgroundSize: slide.imageUrl ? 'cover' : 'contain',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center',
+                backgroundColor: slide.imageUrl ? undefined : 'rgba(6, 10, 19, 0.78)',
+              }}
             >
               <div className="admin-slide-preview-shade"></div>
               <div className="admin-slide-preview-copy">
-                <span className="admin-slide-order">Sahne {index + 1}</span>
-                <strong>{slide.title || 'Baslik bekleniyor'}</strong>
+                <span className="admin-slide-order">Slide {index + 1}</span>
+                <strong>{slide.title || 'Başlık bekleniyor'}</strong>
+                <span className="admin-slide-preview-subtitle">{slide.description || 'Alt başlık bekleniyor'}</span>
+                <div className="admin-slide-preview-tags">
+                  {slide.tags.slice(0, 3).map((tag) => (
+                    <span key={`${slide.id}-${tag}`} className="admin-slide-preview-tag">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
 
             <div className="admin-slide-fields">
               <label className="admin-field">
-                <span className="admin-label">Etiket</span>
+                <span className="admin-label">Foto URL</span>
+                <input
+                  className="admin-input"
+                  value={slide.imageUrl}
+                  onChange={(event) => updateSlide(index, 'imageUrl', event.target.value)}
+                />
+              </label>
+
+              <label className="admin-field">
+                <span className="admin-label">Üst etiket</span>
                 <input
                   className="admin-input"
                   value={slide.eyebrow}
@@ -276,7 +341,7 @@ export default function HeroSlidesAdminPage() {
               </label>
 
               <label className="admin-field">
-                <span className="admin-label">Baslik</span>
+                <span className="admin-label">Başlık</span>
                 <input
                   className="admin-input"
                   value={slide.title}
@@ -285,21 +350,22 @@ export default function HeroSlidesAdminPage() {
               </label>
 
               <label className="admin-field">
-                <span className="admin-label">Aciklama</span>
+                <span className="admin-label">Alt başlık</span>
                 <textarea
                   className="admin-textarea"
-                  rows={4}
+                  rows={3}
                   value={slide.description}
                   onChange={(event) => updateSlide(index, 'description', event.target.value)}
                 />
               </label>
 
               <label className="admin-field">
-                <span className="admin-label">Gorsel URL</span>
+                <span className="admin-label">Tagler</span>
                 <input
                   className="admin-input"
-                  value={slide.imageUrl}
-                  onChange={(event) => updateSlide(index, 'imageUrl', event.target.value)}
+                  value={slide.tags.join(', ')}
+                  onChange={(event) => updateSlideTags(index, event.target.value)}
+                  placeholder="Öne Çıkan, Etkinlik, Kaş Merkez"
                 />
               </label>
 
@@ -309,7 +375,7 @@ export default function HeroSlidesAdminPage() {
                   checked={slide.isActive}
                   onChange={(event) => updateSlide(index, 'isActive', event.target.checked)}
                 />
-                <span>Bu sahne aktif olsun</span>
+                <span>Bu slide aktif olsun</span>
               </label>
 
               <div className="admin-card-actions">
@@ -319,7 +385,7 @@ export default function HeroSlidesAdminPage() {
                   onClick={() => moveSlide(index, -1)}
                   disabled={index === 0}
                 >
-                  Yukari al
+                  Yukarı al
                 </button>
                 <button
                   type="button"
